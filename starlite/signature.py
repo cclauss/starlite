@@ -42,11 +42,10 @@ class SignatureModel(BaseModel):
     class Config(BaseConfig):
         arbitrary_types_allowed = True
 
-    field_plugin_mappings: ClassVar[Dict[str, PluginMapping]]
-    return_annotation: ClassVar[Any]
-    has_kwargs: ClassVar[bool]
-    # this is the factory instance used to construct the model
     dependency_name_set: ClassVar[Set[str]]
+    field_plugin_mappings: ClassVar[Dict[str, PluginMapping]]
+    has_kwargs: ClassVar[bool]
+    return_annotation: ClassVar[Any]
 
     @classmethod
     def parse_values_from_connection_kwargs(
@@ -195,13 +194,13 @@ class SignatureModelFactory:
     """
 
     __slots__ = (
-        "signature",
-        "fn_name",
-        "plugins",
-        "field_plugin_mappings",
-        "field_definitions",
         "defaults",
         "dependency_name_set",
+        "field_definitions",
+        "field_plugin_mappings",
+        "fn_name",
+        "plugins",
+        "signature",
     )
     # names of fn params not included in signature model.
     SKIP_NAMES = {"self", "cls"}

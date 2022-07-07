@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple, Union, cast
 
-from pydantic.fields import ModelField, Undefined
+from pydantic.fields import FieldInfo, ModelField, Undefined
 from typing_extensions import Type
 
 from starlite.connection import Request, WebSocket
@@ -94,9 +94,53 @@ class KwargsModel:
             dependencies=[cls.create_dependency_graph(key=k, dependencies=dependencies) for k in sub_dependency_keys],
         )
 
+    @staticmethod
+    def create_parameter_definitions(
+        allow_none: bool,
+        expected_cookie_params: Set[ParameterDefinition],
+        expected_header_params: Set[ParameterDefinition],
+        expected_path_params: Set[ParameterDefinition],
+        expected_query_params: Set[ParameterDefinition],
+        field_info: FieldInfo,
+        field_name: str,
+        path_parameters: Set[str],
+    ) -> None:
+        """
+        Creates a ParameterDefition for the given pydantic FieldInfo instance and inserts it into the correct parameter set
+        """
+        extra_keys = set(field_info.extra)
+        is_required = field_info.extra.get("required", True)
+        default_value = field_info.default if field_info.default is not Undefined else None
+
+        if field_name in path_parameters:
+            parameter_set = expected_path_params
+            field_alias = field_name
+        elif "header" in extra_keys and field_info.extra["header"]:
+            parameter_set = expected_header_params
+            field_alias = field_info.extra["header"]
+        elif "cookie" in extra_keys and field_info.extra["cookie"]:
+            parameter_set = expected_cookie_params
+            field_alias = field_info.extra["cookie"]
+        else:
+            parameter_set = expected_query_params
+            field_alias = field_info.extra.get("query") or field_name
+
+        parameter_set.add(
+            ParameterDefinition(
+                field_name=field_name,
+                field_alias=field_alias,
+                default_value=default_value,
+                is_required=is_required and default_value is None and not allow_none,
+            )
+        )
+
     @classmethod
     def create_for_signature_model(
-        cls, signature_model: Type[SignatureModel], dependencies: Dict[str, Provide], path_parameters: Set[str]
+        cls,
+        signature_model: Type[SignatureModel],
+        dependencies: Dict[str, Provide],
+        path_parameters: Set[str],
+        layered_parameters: Dict[str, FieldInfo],
     ) -> "KwargsModel":
         """
         This function pre-determines what parameters are required for a given combination of route + route handler.
@@ -123,31 +167,27 @@ class KwargsModel:
         fields = filter(lambda keys: keys[0] not in ignored_keys, signature_model.__fields__.items())
 
         for field_name, model_field in fields:
-            model_info = model_field.field_info
-            extra_keys = set(model_info.extra)
-            default = model_field.default if model_field.default is not Undefined else None
-            is_required = model_info.extra.get("required", True)
+            cls.create_parameter_definitions(
+                allow_none=model_field.allow_none,
+                expected_cookie_params=expected_cookie_parameters,
+                expected_header_params=expected_header_parameters,
+                expected_path_params=expected_path_parameters,
+                expected_query_params=expected_query_parameters,
+                field_name=field_name,
+                field_info=model_field.field_info,
+                path_parameters=path_parameters,
+            )
 
-            if field_name in path_parameters:
-                parameter_set = expected_path_parameters
-                field_alias = field_name
-            elif "header" in extra_keys and model_info.extra["header"]:
-                parameter_set = expected_header_parameters
-                field_alias = model_info.extra["header"]
-            elif "cookie" in extra_keys and model_info.extra["cookie"]:
-                parameter_set = expected_cookie_parameters
-                field_alias = model_info.extra["cookie"]
-            else:
-                parameter_set = expected_query_parameters
-                field_alias = model_info.extra.get("query") or field_name
-
-            parameter_set.add(
-                ParameterDefinition(
-                    field_name=field_name,
-                    field_alias=field_alias,
-                    default_value=default,
-                    is_required=is_required and default is None and not model_field.allow_none,
-                )
+        for parameter_name, field_info in layered_parameters.items():
+            cls.create_parameter_definitions(
+                allow_none=False,
+                expected_cookie_params=expected_cookie_parameters,
+                expected_header_params=expected_header_parameters,
+                expected_path_params=expected_path_parameters,
+                expected_query_params=expected_query_parameters,
+                field_name=parameter_name,
+                field_info=field_info,
+                path_parameters=path_parameters,
             )
 
         expected_form_data = None
@@ -165,6 +205,7 @@ class KwargsModel:
                 signature_model=get_signature_model(dependency.provide),
                 dependencies=dependencies,
                 path_parameters=path_parameters,
+                layered_parameters=layered_parameters,
             )
             expected_path_parameters = merge_parameter_sets(
                 expected_path_parameters, dependency_kwargs_model.expected_path_params

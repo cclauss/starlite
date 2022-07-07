@@ -7,6 +7,7 @@ from uuid import UUID
 
 from anyio.to_thread import run_sync
 from pydantic import validate_arguments
+from pydantic.fields import FieldInfo
 from pydantic.typing import AnyCallable
 from starlette.requests import HTTPConnection
 from starlette.responses import Response as StarletteResponse
@@ -105,14 +106,25 @@ class BaseRoute:
         """
         dependencies = route_handler.resolve_dependencies()
         signature_model = get_signature_model(route_handler)
+
         path_parameters = set()
         for param in self.path_parameters:
             param_name = param["name"]
             if param_name in path_parameters:
                 raise ImproperlyConfiguredException(f"Duplicate parameter '{param_name}' detected in '{self.path}'.")
             path_parameters.add(param_name)
+
+        layered_parameters: Dict[str, FieldInfo] = {}
+        for layer in route_handler.ownership_layers():
+            if hasattr(layer, "parameters"):
+                for key, field_info in cast(Dict[str, FieldInfo], layer.parameters).items():  # type: ignore
+                    layered_parameters[key] = field_info
+
         return KwargsModel.create_for_signature_model(
-            signature_model=signature_model, dependencies=dependencies, path_parameters=path_parameters
+            signature_model=signature_model,
+            dependencies=dependencies,
+            path_parameters=path_parameters,
+            layered_parameters=layered_parameters,
         )
 
 
