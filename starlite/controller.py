@@ -1,6 +1,7 @@
 from copy import copy
-from typing import TYPE_CHECKING, Dict, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
+from pydantic.fields import FieldInfo
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing_extensions import Type
@@ -35,6 +36,7 @@ class Controller:
         "guards",
         "middleware",
         "owner",
+        "parameters",
         "path",
         "response_class",
         "response_headers",
@@ -48,22 +50,14 @@ class Controller:
     guards: Optional[List[Guard]]
     middleware: Optional[List[Union[Middleware, Type[BaseHTTPMiddleware], Type[MiddlewareProtocol]]]]
     owner: "Router"
+    parameters: Optional[Dict[str, Tuple[Any, FieldInfo]]]
     path: str
     response_class: Optional[Type[Response]]
     response_headers: Optional[Dict[str, ResponseHeader]]
     tags: Optional[List[str]]
 
     def __init__(self, owner: "Router"):
-        for key in [
-            "after_request",
-            "before_request",
-            "dependencies",
-            "exception_handlers",
-            "guards",
-            "middleware",
-            "response_class",
-            "response_headers",
-        ]:
+        for key in self.__slots__:
             if not hasattr(self, key):
                 setattr(self, key, None)
 

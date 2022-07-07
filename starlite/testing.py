@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 
 from orjson import dumps
 from pydantic import BaseModel
+from pydantic.fields import FieldInfo
 from pydantic.typing import AnyCallable
 from starlette.testclient import TestClient as StarletteTestClient
 from typing_extensions import Type
@@ -128,6 +129,7 @@ def create_test_client(
     on_shutdown: Optional[List[LifeCycleHandler]] = None,
     on_startup: Optional[List[LifeCycleHandler]] = None,
     openapi_config: Optional[OpenAPIConfig] = None,
+    parameters: Optional[Dict[str, Tuple[Any, FieldInfo]]] = None,
     plugins: Optional[List[PluginProtocol]] = None,
     raise_server_exceptions: bool = True,
     root_path: str = "",
@@ -150,6 +152,7 @@ def create_test_client(
             on_shutdown=on_shutdown,
             on_startup=on_startup,
             openapi_config=openapi_config,
+            parameters=parameters,
             plugins=plugins,
             route_handlers=cast(Any, route_handlers if isinstance(route_handlers, list) else [route_handlers]),
             static_files_config=static_files_config,
