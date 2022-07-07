@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Set, Union, cast
 
 from openapi_schema_pydantic.util import construct_open_api_with_schema_class
 from openapi_schema_pydantic.v3.v3_1_0.open_api import OpenAPI
@@ -89,7 +89,7 @@ class Starlite(Router):
         on_shutdown: Optional[List[LifeCycleHandler]] = None,
         on_startup: Optional[List[LifeCycleHandler]] = None,
         openapi_config: Optional[OpenAPIConfig] = DEFAULT_OPENAPI_CONFIG,
-        parameters: Optional[Dict[str, Tuple[Any, FieldInfo]]] = None,
+        parameters: Optional[Dict[str, FieldInfo]] = None,
         plugins: Optional[List[PluginProtocol]] = None,
         response_class: Optional[Type[Response]] = None,
         response_headers: Optional[Dict[str, ResponseHeader]] = None,
@@ -281,15 +281,15 @@ class Starlite(Router):
             route_handler.signature_model = SignatureModelFactory(
                 fn=cast(AnyCallable, route_handler.fn),
                 plugins=self.plugins,
-                provided_dependency_names=route_handler.dependency_name_set,
-            ).model()
+                dependency_names=route_handler.dependency_name_set,
+            ).create_signature_model()
         for provider in list(route_handler.resolve_dependencies().values()):
             if not provider.signature_model:
                 provider.signature_model = SignatureModelFactory(
                     fn=provider.dependency,
                     plugins=self.plugins,
-                    provided_dependency_names=route_handler.dependency_name_set,
-                ).model()
+                    dependency_names=route_handler.dependency_name_set,
+                ).create_signature_model()
 
     def create_openapi_schema_model(self, openapi_config: OpenAPIConfig) -> OpenAPI:
         """

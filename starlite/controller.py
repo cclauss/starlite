@@ -1,5 +1,5 @@
 from copy import copy
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Dict, List, Optional, Union, cast
 
 from pydantic.fields import FieldInfo
 from starlette.middleware import Middleware
@@ -50,7 +50,7 @@ class Controller:
     guards: Optional[List[Guard]]
     middleware: Optional[List[Union[Middleware, Type[BaseHTTPMiddleware], Type[MiddlewareProtocol]]]]
     owner: "Router"
-    parameters: Optional[Dict[str, Tuple[Any, FieldInfo]]]
+    parameters: Optional[Dict[str, FieldInfo]]
     path: str
     response_class: Optional[Type[Response]]
     response_headers: Optional[Dict[str, ResponseHeader]]
